@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Auto Shorts Clipper Studio</title>
+    <style>
+        :root { --primary: #00f2fe; --danger: #ff4b4b; --dark: #121212; --panel: #1e1e1e; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--dark); color: #fff; margin: 0; padding: 20px; }
+        .app-title { text-align: center; color: var(--primary); margin-bottom: 30px; font-size: 2rem; }
+        .wrapper { display: flex; max-width: 1200px; margin: 0 auto; gap: 30px; flex-wrap: wrap; }
+        .preview-side { flex: 1; min-width: 320px; max-width: 380px; display: flex; flex-direction: column; align-items: center; }
+        .video-box { width: 100%; height: 580px; background: #000; border-radius: 12px; border: 3px solid #333; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
+        .editor-side { flex: 2; min-width: 450px; background: var(--panel); padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .form-control { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #444; background: #2c2c2c; color: #fff; border-radius: 6px; box-sizing: border-box; }
+        .flex-row { display: flex; gap: 15px; }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; margin-bottom: 10px; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #000; }
+        .btn-yt { background: var(--danger); color: #fff; }
+        .btn-tiktok { background: #000; color: #fff; border: 1px solid #444; }
+        .loading { display: none; color: var(--primary); text-align: center; font-weight: bold; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <h1 class="app-title">🚀 AI Auto Shorts Clipper Studio</h1>
+
+    <div class="wrapper">
+        <!-- Panel Kiri: Pratinjau Video Hasil Jadi -->
+        <div class="preview-side">
+            <div class="video-box">
+                <video id="shortVideoPlayer" width="100%" height="100%" controls>
+                    <source id="videoSource" src="" type="video/mp4">
+                    Browser Anda tidak mendukung pemutar video.
+                </video>
+            </div>
+            <p style="color: #888; font-size: 13px; margin-top: 10px;">*Pratinjau video vertikal otomatis (9:16) dengan subtitle AI</p>
+        </div>
+
+        <!-- Panel Kanan: Menu Input & Tombol Distribusi -->
+        <div class="editor-side">
+            <h3>1. Konfigurasi Video Sumber</h3>
+            <label>Link URL Video YouTube:</label>
+            <input type="text" id="targetUrl" class="form-control" placeholder="https://youtube.com...">
+            
+            <div class="flex-row">
+                <div style="flex:1;">
+                    <label>Detik Mulai:</label>
+                    <input type="number" id="tStart" class="form-control" value="0">
+                </div>
+                <div style="flex:1;">
+                    <label>Detik Selesai:</label>
+                    <input type="number" id="tEnd" class="form-control" value="15">
+                </div>
+            </div>
+
+            <div class="loading" id="loader">🔄 AI sedang mengunduh, memotong video, dan menyusun teks otomatis. Proses ini memakan waktu 1-2 menit...</div>
+            <button class="btn btn-primary" onclick="generateShortsVideo()">Ekstrak Menjadi Shorts Video (AI)</button>
+
+            <hr style="border-color: #333; margin: 25px 0;">
+
+            <h3>2. Manajemen Teks Masukan & Publikasi</h3>
+            <label>Hasil Teks Otomatis Suara (Transkrip):</label>
+            <textarea id="aiTextOutput" class="form-control" style="height: 80px; resize: none;" readonly placeholder="Hasil transkripsi kecerdasan buatan akan muncul otomatis di sini..."></textarea>
+
+            <label>Judul Publikasi Media Sosial:</label>
+            <input type="text" id="socialTitle" class="form-control" value="Klip Menarik Hari Ini! #shorts #aiclipper">
+
+            <div class="flex-row" style="margin-top: 15px;">
+                <button class="btn btn-yt" onclick="uploadKeYouTube()">Publish ke YouTube Shorts</button>
+                <button class="btn btn-tiktok" onclick="uploadKeTikTok()">Publish ke TikTok</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Menggunakan path relatif agar kompatibel saat dideploy di Render
+    const serverUrl = window.location.origin;
+
+    async function generateShortsVideo() {
+        const url = document.getElementById('targetUrl').value;
+        const start = document.getElementById('tStart').value;
+        const end = document.getElementById('tEnd').value;
+
+        if(!url) return alert("Harap isi URL video YouTube terlebih dahulu!");
+
+        document.getElementById('loader').style.display = "block";
+
+        try {
+            const res = await fetch(`${serverUrl}/api/create-shorts`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ url, start, end })
+            });
+            const data = await res.json();
+            
+            if(data.status === "success") {
+                // Memuat ulang player video dengan file output_short.mp4 baru
+                const player = document.getElementById('shortVideoPlayer');
+                document.getElementById('videoSource').src = data.video_url + "?t=" + new Date().getTime(); // Anti-cache
+                player.load();
+                player.play();
+
+                // Tampilkan gabungan teks transkrip AI ke halaman web
+                const textArr = data.transcription.map(item => item.text);
+                document.getElementById('aiTextOutput').value = textArr.join(" ");
+                alert("Video Shorts Berhasil Dibuat!");
+            } else {
+                alert("Gagal memproses: " + data.message);
+            }
+        } catch (err) {
+            alert("Terjadi kesalahan koneksi server!");
+        } finally {
+            document.getElementById('loader').style.display = "none";
+        }
+    }
+
+    async function uploadKeYouTube() {
+        const title = document.getElementById('socialTitle').value;
+        
+        const res = await fetch(`${serverUrl}/api/share-youtube`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ title: title, description: "#shorts #ai #clipper" })
+        });
+        const data = await res.json();
+
+        if (data.status === "need_auth") {
+            // Jika belum login Google OAuth, buka pop-up halaman login akun Google channel YouTube Anda
+            alert("Aplikasi memerlukan izin akses upload. Silakan selesaikan login di tab baru.");
+            window.open(data.auth_url, "YouTube Auth", "width=600,height=600");
+        } else if (data.status === "success") {
+            alert("Sukses Terbit! Video masuk ke antrean YouTube Shorts ID: " + data.video_id);
+        } else {
+            alert("Gagal Upload: " + data.message);
+        }
+    }
+
+    async function uploadKeTikTok() {
+        const res = await fetch(`${serverUrl}/api/share-tiktok`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+    }
+</script>
+
+</body>
+                      </html>
+  
